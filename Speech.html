@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Transcription Service</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: linear-gradient(to right, #f2f7ff, #e0f7fa);
+      margin: 0;
+      padding: 30px;
+      color: #333;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: auto;
+      padding: 30px;
+      background: #ffffff;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      border-radius: 12px;
+      border-left: 8px solid #4fc3f7;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 24px;
+      text-transform: uppercase;
+      color: #007acc;
+      background: #e3f2fd;
+      padding: 15px;
+      border-radius: 8px;
+    }
+
+    #status {
+      text-align: center;
+      font-weight: bold;
+      margin: 20px 0;
+      color: #444;
+    }
+
+    #note {
+      min-height: 180px;
+      background: #f1f8ff;
+      padding: 20px;
+      font-size: 16px;
+      border-radius: 6px;
+      border: 1px solid #90caf9;
+      white-space: pre-wrap;
+      margin-bottom: 20px;
+    }
+
+    #buttons {
+      display: none;
+      text-align: center;
+    }
+
+    button {
+      background: #2196f3;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      margin: 10px;
+      font-size: 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    button:hover {
+      background: #1976d2;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>TRANSCRIPTION SERVICE FOR MEETING AND CONFERENCE</h1>
+    <div id="status">Say "hello" to start transcription.</div>
+    <div id="note"></div>
+    <div id="buttons">
+      <button id="downloadBtn">Download as PDF</button>
+      <button id="restartBtn">Restart</button>
+    </div>
+  </div>
+
+  <script>
+    let finalText = "";
+    let isRecording = false;
+    let lastTranscript = "";
+
+    const note = document.getElementById("note");
+    const status = document.getElementById("status");
+    const downloadBtn = document.getElementById("downloadBtn");
+    const restartBtn = document.getElementById("restartBtn");
+    const buttons = document.getElementById("buttons");
+
+    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = "en-US";
+
+    function startRecognition() {
+      try {
+        recognition.start();
+      } catch (err) {
+        console.log("Already listening...");
+      }
+    }
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
+      if (transcript === lastTranscript) return;
+      lastTranscript = transcript;
+
+      if (transcript === "hello") {
+        isRecording = true;
+        finalText = "";
+        status.textContent = "Recording... Say 'thank you' to stop.";
+        buttons.style.display = "none";
+        note.textContent = "";
+      } else if (transcript === "thank you" && isRecording) {
+        isRecording = false;
+        status.textContent = "Stopped. Download or restart.";
+        buttons.style.display = "block";
+      } else if (isRecording) {
+        finalText += transcript + " ";
+        note.textContent = finalText;
+      }
+    };
+
+    recognition.onend = () => {
+      startRecognition();
+    };
+
+    recognition.onerror = (e) => {
+      status.textContent = "Mic error: " + e.error;
+    };
+
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(() => {
+      startRecognition();
+    }).catch(() => {
+      status.textContent = "Please allow microphone access.";
+    });
+
+    downloadBtn.onclick = () => {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: "pt", format: "a4" });
+
+      const margin = 40;
+      const width = doc.internal.pageSize.getWidth() - margin * 2;
+
+      doc.setLineWidth(1.2);
+      doc.rect(margin, margin, width, 750);
+      doc.setFont("Helvetica", "bold");
+      doc.setFontSize(14);
+
+      const lines = doc.splitTextToSize(finalText.trim(), width - 20);
+      doc.text(lines, margin + 10, margin + 35);
+      doc.save("Transcription_Note.pdf");
+    };
+
+    restartBtn.onclick = () => {
+      finalText = "";
+      lastTranscript = "";
+      isRecording = false;
+      note.textContent = "";
+      buttons.style.display = "none";
+      status.textContent = "Say 'hello' to start transcription.";
+    };
+  </script>
+</body>
+</html>
